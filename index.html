@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gemini Travel · Vuelo a República Dominicana</title>
+  <script src="config.js"></script>
+  <style>
+    :root { --pin: #e63946; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #000; color: #fff;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+    #stage { position: fixed; inset: 0; }
+    gmp-map-3d { width: 100%; height: 100%; display: block; }
+
+    /* Pin animado en el centro de la pantalla (la cámara siempre termina centrada en el destino) */
+    #pin { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -100%);
+      pointer-events: none; opacity: 0; display: flex; flex-direction: column; align-items: center; }
+    #pin svg { width: 64px; height: 64px; filter: drop-shadow(0 6px 8px rgba(0,0,0,.45)); }
+    #pin .pulse { position: absolute; bottom: -10px; width: 22px; height: 10px; border-radius: 50%;
+      background: var(--pin); opacity: .6; }
+    #pin.show { animation: drop .9s cubic-bezier(.2,1.6,.4,1) forwards; }
+    #pin.show .pulse { animation: pulse 1.6s ease-out .9s infinite; }
+    @keyframes drop {
+      0% { opacity: 0; transform: translate(-50%, -260%) scale(.6); }
+      60% { opacity: 1; }
+      100% { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: .6; }
+      100% { transform: scale(5); opacity: 0; }
+    }
+
+    #label { position: fixed; left: 50%; top: calc(50% + 28px); transform: translateX(-50%);
+      text-align: center; opacity: 0; transition: opacity .8s ease .5s; pointer-events: none;
+      text-shadow: 0 2px 12px rgba(0,0,0,.8); }
+    #label.show { opacity: 1; }
+    #label h1 { margin: 0; font-size: clamp(22px, 4vw, 44px); font-weight: 800; letter-spacing: .02em; }
+    #label p { margin: 4px 0 0; font-size: clamp(14px, 2vw, 20px); opacity: .85; }
+
+    /* Controles: se ocultan durante la animación para grabar limpio */
+    #controls { position: fixed; left: 16px; bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;
+      z-index: 10; transition: opacity .3s; }
+    body.playing #controls { opacity: 0; pointer-events: none; }
+    button { font: inherit; font-size: 14px; padding: 10px 14px; border-radius: 10px; border: 0;
+      background: rgba(255,255,255,.92); color: #111; cursor: pointer; font-weight: 600; }
+    button.primary { background: var(--pin); color: #fff; }
+
+    #keyform { position: fixed; inset: 0; display: none; place-items: center; background: #0b0f1a; z-index: 20;
+      padding: 16px; }
+    #keyform.show { display: grid; }
+    #keyform form { max-width: 480px; width: 100%; background: #151b2b; padding: 24px; border-radius: 16px; }
+    #keyform h2 { margin-top: 0; }
+    #keyform input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #334; background: #0b0f1a;
+      color: #fff; font: inherit; margin: 8px 0 16px; }
+    #keyform small { display: block; opacity: .7; line-height: 1.5; margin-bottom: 16px; }
+    #error { position: fixed; top: 16px; left: 16px; right: 16px; padding: 12px 16px; border-radius: 10px;
+      background: #7a1020; display: none; z-index: 30; }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+
+  <div id="pin" aria-hidden="true">
+    <span class="pulse"></span>
+    <svg viewBox="0 0 24 24"><path fill="currentColor" id="pinpath"
+      d="M12 2C7.6 2 4 5.6 4 10c0 5.6 7 11.4 7.3 11.7.4.3 1 .3 1.4 0C13 21.4 20 15.6 20 10c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>
+  </div>
+  <div id="label"><h1></h1><p></p></div>
+
+  <div id="controls">
+    <button class="primary" id="play">▶ Reproducir</button>
+    <button id="record">● Grabar video</button>
+    <button id="reset">↺ Volver al globo</button>
+  </div>
+
+  <div id="keyform">
+    <form>
+      <h2>Google Maps API key</h2>
+      <small>La animación usa los mapas 3D fotorrealistas de Google (las mismas imágenes de Google Earth).
+        Necesitás una API key con <b>Maps JavaScript API</b> y <b>Map Tiles API</b> habilitadas.
+        La key se guarda solo en este navegador.</small>
+      <input name="key" placeholder="AIza..." autocomplete="off" required />
+      <button class="primary" type="submit">Continuar</button>
+    </form>
+  </div>
+  <div id="error"></div>
+
+  <script>
+    const CFG = window.TRAVEL_CONFIG;
+    const $ = (s) => document.querySelector(s);
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    document.documentElement.style.setProperty("--pin", CFG.pinColor);
+    $("#pin").style.color = CFG.pinColor;
+    $("#label h1").textContent = CFG.label;
+    $("#label p").textContent = CFG.sublabel;
+
+    function showError(msg) { const e = $("#error"); e.textContent = msg; e.style.display = "block"; }
+
+    function getKey() {
+      const fromUrl = new URLSearchParams(location.search).get("key");
+      if (fromUrl) { try { localStorage.setItem("gmapsKey", fromUrl); } catch {} return fromUrl; }
+      try { return localStorage.getItem("gmapsKey"); } catch { return null; }
+    }
+
+    // Loader oficial ("dynamic library import") de Google Maps JS API
+    function loadGoogleMaps(key) {
+      ((g)=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+        key, v: "beta",
+      });
+    }
+
+    // Google llama a esta función si la key es inválida o no tiene permisos
+    window.gm_authFailure = () => {
+      try { localStorage.removeItem("gmapsKey"); } catch {}
+      showError("La API key fue rechazada. Revisá que tenga Maps JavaScript API y Map Tiles API habilitadas, y recargá la página.");
+    };
+
+    let map;
+    let playing = false;
+
+    function setCamera(cam) {
+      map.center = cam.center; map.range = cam.range; map.tilt = cam.tilt; map.heading = cam.heading;
+    }
+
+    function fly(step) {
+      return new Promise((resolve) => {
+        const done = () => { map.removeEventListener("gmp-animationend", done); resolve(); };
+        map.addEventListener("gmp-animationend", done);
+        map.flyCameraTo({
+          endCamera: { center: step.center, range: step.range, tilt: step.tilt, heading: step.heading },
+          durationMillis: step.durationMillis,
+        });
+        // Red de seguridad por si el evento no llega
+        setTimeout(done, step.durationMillis + 1500);
+      });
+    }
+
+    function hidePin() { $("#pin").classList.remove("show"); $("#label").classList.remove("show"); }
+
+    function reset() { hidePin(); map.stopCameraAnimation?.(); setCamera(CFG.start); }
+
+    async function play() {
+      if (playing) return;
+      playing = true;
+      document.body.classList.add("playing");
+      reset();
+      await wait(CFG.startDelayMillis);
+      for (const step of CFG.flights) await fly(step);
+      $("#pin").classList.add("show");
+      $("#label").classList.add("show");
+      await wait(CFG.endHoldMillis);
+      document.body.classList.remove("playing");
+      playing = false;
+    }
+
+    // Graba la pestaña actual con la API de captura de pantalla del navegador (Chrome/Edge)
+    async function record() {
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: 60, displaySurface: "browser" }, audio: false,
+          preferCurrentTab: true, selfBrowserSurface: "include",
+        });
+      } catch { return; }
+      const mime = ["video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm"]
+        .find((t) => MediaRecorder.isTypeSupported(t));
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 16_000_000 });
+      const chunks = [];
+      rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob(chunks, { type: mime }));
+        a.download = `vuelo-republica-dominicana.${mime.startsWith("video/mp4") ? "mp4" : "webm"}`;
+        a.click();
+      };
+      rec.start();
+      await play();
+      rec.stop();
+    }
+
+    async function init(key) {
+      loadGoogleMaps(key);
+      const { Map3DElement } = await google.maps.importLibrary("maps3d");
+      map = new Map3DElement({
+        center: CFG.start.center, range: CFG.start.range, tilt: CFG.start.tilt, heading: CFG.start.heading,
+        mode: "SATELLITE",
+        defaultUIHidden: true,
+      });
+      $("#stage").append(map);
+      $("#play").onclick = play;
+      $("#record").onclick = record;
+      $("#reset").onclick = reset;
+      if (new URLSearchParams(location.search).has("autoplay")) play();
+    }
+
+    const key = getKey();
+    if (key) {
+      init(key).catch((e) => showError("No se pudo cargar el mapa 3D: " + e.message));
+    } else {
+      $("#keyform").classList.add("show");
+      $("#keyform form").onsubmit = (ev) => {
+        ev.preventDefault();
+        const k = new FormData(ev.target).get("key").trim();
+        try { localStorage.setItem("gmapsKey", k); } catch {}
+        $("#keyform").classList.remove("show");
+        init(k).catch((e) => showError("No se pudo cargar el mapa 3D: " + e.message));
+      };
+    }
+  </script>
+</body>
+</html>
