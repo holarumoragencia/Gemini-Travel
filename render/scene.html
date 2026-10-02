@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Escena del vuelo</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #label { position: absolute; left: 0; right: 0; text-align: center; color: #fff;
+    font-family: "Helvetica Neue", Arial, sans-serif; text-shadow: 0 3px 18px rgba(0,0,0,.85); opacity: 0; }
+  #label h1 { margin: 0; font-weight: 800; letter-spacing: .03em; }
+  #label p { margin: .3em 0 0; font-weight: 400; opacity: .9; letter-spacing: .12em; text-transform: uppercase; }
+  #credit { position: absolute; right: 12px; bottom: 8px; color: rgba(255,255,255,.45);
+    font: 12px Arial, sans-serif; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="vec"></canvas>
+<div id="label"><h1></h1><p></p></div>
+<div id="credit">Imagen: NASA Blue Marble · Datos: Natural Earth</div>
+
+<script src="/node_modules/d3-array/dist/d3-array.min.js"></script>
+<script src="/node_modules/d3-geo/dist/d3-geo.min.js"></script>
+<script src="/node_modules/topojson-client/dist/topojson-client.min.js"></script>
+<script>
+const P = new URLSearchParams(location.search);
+const W = +P.get("w") || 1920, H = +P.get("h") || 1080;
+const CFG = {
+  label: P.get("label") || "República Dominicana",
+  sublabel: P.get("sublabel") || "Santo Domingo",
+  countryId: "214",                       // ISO 3166 numérico de República Dominicana
+  pin: [-69.9312, 18.4861],               // Santo Domingo
+  start: [5, 22],                        // centro del globo al arrancar
+  end: [-70.25, 18.85],                   // centro final (el país completo)
+  duration: 12,                            // segundos
+  color: "#ff4d5a",
+};
+
+const dpr = 1;
+const gl = document.getElementById("gl").getContext("webgl2", { preserveDrawingBuffer: true, antialias: true });
+const vcan = document.getElementById("vec");
+const ctx = vcan.getContext("2d");
+for (const c of [gl.canvas, vcan]) { c.width = W * dpr; c.height = H * dpr; }
+const minDim = Math.min(W, H);
+document.getElementById("label").querySelector("h1").textContent = CFG.label;
+document.getElementById("label").querySelector("p").textContent = CFG.sublabel;
+document.querySelector("#label h1").style.fontSize = Math.round(minDim * 0.062) + "px";
+document.querySelector("#label p").style.fontSize = Math.round(minDim * 0.026) + "px";
+
+// ---------- WebGL: globo con textura satelital (proyección ortográfica inversa por pixel) ----------
+const vs = `#version 300 es
+in vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
+const fs = `#version 300 es
+precision highp float;
+uniform sampler2D earth, sky;
+uniform vec2 res, center;   // center: lon/lat en radianes
+uniform float R, skyAlpha, earthAlpha;
+out vec4 o;
+const float PI = 3.141592653589793;
+void main(){
+  vec2 q = gl_FragCoord.xy - res*0.5;
+  vec2 n = q / R;
+  float rho = length(n);
+  vec2 suv = gl_FragCoord.xy / res;
+  vec3 bg = texture(sky, vec2(suv.x*res.x/res.y*0.5, suv.y)).rgb * 0.55 * skyAlpha;
+  // halo atmosférico
+  float halo = rho > 1.0 ? exp(-(rho-1.0)*R/ (0.035*${minDim.toFixed(1)}) ) : 0.0;
+  if (rho > 1.0) { o = vec4(bg + vec3(0.35,0.6,1.0)*halo*0.85, 1.0); return; }
+  float cosc = sqrt(1.0 - rho*rho);
+  float s0 = sin(center.y), c0 = cos(center.y);
+  float lat = asin(clamp(cosc*s0 + n.y*c0, -1.0, 1.0));
+  float lon = center.x + atan(n.x, cosc*c0 - n.y*s0);
+  vec2 uv = vec2(lon/(2.0*PI) + 0.5, 0.5 - lat/PI);
+  float lod = max(0.0, log2((4096.0/(2.0*PI)) / R));
+  vec3 col = textureLod(earth, uv, lod).rgb;
+  // luz suave desde arriba a la izquierda + oscurecimiento del borde
+  vec3 nrm = vec3(n.x, n.y, cosc);
+  float light = clamp(dot(nrm, normalize(vec3(-0.45,0.4,0.8))), 0.0, 1.0);
+  col *= 0.35 + 0.85*light;
+  col = mix(col, vec3(0.45,0.7,1.0), pow(1.0-cosc, 3.0)*0.55);
+  o = vec4(mix(bg, col, earthAlpha), 1.0);
+}`;
+function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+gl.linkProgram(prog); gl.useProgram(prog);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc);
+gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+const U = (n) => gl.getUniformLocation(prog, n);
+
+function loadTex(url, unit, repeat){
+  return new Promise((res, rej) => { const img = new Image(); img.onload = () => {
+    const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, repeat ? gl.REPEAT : gl.MIRRORED_REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    res(); }; img.onerror = rej; img.src = url; });
+}
+
+// ---------- utilidades de animación ----------
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+const seg = (t, a, b) => clamp01((t - a) / (b - a));
+const easeInOut = (x) => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2;
+const easeOutBack = (x) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3*Math.pow(x-1,3) + c1*Math.pow(x-1,2); };
+const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t*t*(3 - 2*t); };
+
+let world, land, borders, dr, drLand;
+const R0 = minDim * 0.40;
+// Tamaño final: el país ocupa ~60 % del ancho (o del alto si es vertical)
+const R1 = (Math.min(W * (W < H ? 0.85 : 0.62), H * 1.2)) / (3.9 * Math.PI / 180 * Math.cos(18.8 * Math.PI / 180));
+
+function camera(t){
+  const rotP = easeInOut(seg(t, 0.0, 6.0));
+  const lonlat = d3.geoInterpolate(CFG.start, CFG.end)(rotP);
+  const zP = easeInOut(seg(t, 1.8, 8.4));
+  let R = Math.exp(Math.log(R0) + (Math.log(R1) - Math.log(R0)) * zP);
+  R *= 1 + 0.06 * seg(t, 8.4, CFG.duration);          // empuje lento final
+  return { lonlat, R };
+}
+
+function draw(t){
+  const { lonlat, R } = camera(t);
+  const vecA = smooth(R0 * 7, R0 * 18, R);              // de satélite a mapa estilizado
+  gl.viewport(0, 0, W*dpr, H*dpr);
+  gl.uniform1i(U("earth"), 0); gl.uniform1i(U("sky"), 1);
+  gl.uniform2f(U("res"), W*dpr, H*dpr);
+  gl.uniform2f(U("center"), lonlat[0]*Math.PI/180, lonlat[1]*Math.PI/180);
+  gl.uniform1f(U("R"), R*dpr);
+  gl.uniform1f(U("skyAlpha"), 1);
+  gl.uniform1f(U("earthAlpha"), 1);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  const proj = d3.geoOrthographic().rotate([-lonlat[0], -lonlat[1]]).scale(R*dpr)
+    .translate([W*dpr/2, H*dpr/2]).clipAngle(90).precision(0.3);
+  const path = d3.geoPath(proj, ctx);
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0, 0, vcan.width, vcan.height);
+
+  // Mapa estilizado (aparece al acercarse)
+  if (vecA > 0) {
+    ctx.globalAlpha = vecA;
+    const g = ctx.createRadialGradient(W*dpr/2, H*dpr/2, 0, W*dpr/2, H*dpr/2, Math.max(W,H)*dpr*0.75);
+    g.addColorStop(0, "#0d3b66"); g.addColorStop(1, "#061a33");
+    ctx.fillStyle = g; ctx.beginPath(); path({ type: "Sphere" }); ctx.fill();
+    ctx.fillStyle = "#1f4e79"; ctx.beginPath(); path(land); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.28)"; ctx.lineWidth = 1.2*dpr; ctx.beginPath(); path(borders); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Resaltado de República Dominicana
+  const hiA = smooth(R0 * 2.5, R0 * 9, R);
+  if (hiA > 0) {
+    ctx.save();
+    ctx.globalAlpha = hiA;
+    ctx.shadowColor = CFG.color; ctx.shadowBlur = 28*dpr;
+    ctx.fillStyle = vecA > 0.5 ? "rgba(255,77,90,0.92)" : "rgba(255,77,90,0.55)";
+    ctx.beginPath(); path(dr); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(1.5, Math.min(3.5, R/R0*0.25))*dpr;
+    ctx.lineJoin = "round"; ctx.beginPath(); path(dr); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Pin de ubicación
+  const pinP = seg(t, 8.3, 9.1);
+  const [px, py] = proj(CFG.pin);
+  const size = minDim * 0.12 * dpr;
+  if (pinP > 0) {
+    // pulso en el suelo
+    for (const off of [0, 0.8]) {
+      const pp = ((t - 9.0 - off) % 1.6 + 1.6) % 1.6 / 1.6;
+      if (t > 9.0 + off) {
+        ctx.beginPath(); ctx.ellipse(px, py, size*0.2 + pp*size*0.9, (size*0.2 + pp*size*0.9)*0.42, 0, 0, 2*Math.PI);
+        ctx.strokeStyle = `rgba(255,77,90,${(1-pp)*0.9})`; ctx.lineWidth = 3*dpr; ctx.stroke();
+      }
+    }
+    const k = easeOutBack(pinP);
+    const drop = (1 - k) * -size * 3;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, pinP * 3);
+    // sombra
+    ctx.beginPath(); ctx.ellipse(px, py, size*0.18*Math.min(1,k), size*0.07*Math.min(1,k), 0, 0, 2*Math.PI);
+    ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fill();
+    ctx.translate(px, py + drop);
+    const s = size / 24;
+    ctx.scale(s, s); ctx.translate(-12, -22.3);
+    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
+    ctx.fillStyle = CFG.color;
+    ctx.fill(new Path2D("M12 2C7.6 2 4 5.6 4 10c0 5.6 7 11.4 7.3 11.7.4.3 1 .3 1.4 0C13 21.4 20 15.6 20 10c0-4.4-3.6-8-8-8z"));
+    ctx.shadowColor = "transparent";
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(12, 10, 3.2, 0, 2*Math.PI); ctx.fill();
+    ctx.restore();
+  }
+
+  // Texto
+  const lab = document.getElementById("label");
+  const la = smooth(8.9, 9.6, t);
+  lab.style.opacity = la;
+  lab.style.top = (py/dpr + minDim*0.035 + (1-la)*20) + "px";
+}
+
+window.ready = (async () => {
+  await Promise.all([loadTex("assets/earth-blue-marble.jpg", 0, true), loadTex("assets/night-sky.png", 1, false)]);
+  const w10 = await fetch("assets/countries-10m.json").then(r => r.json());
+  // Descartamos polígonos con el sentido invertido (cubrirían toda la esfera) y la Antártida
+  land = { type: "FeatureCollection", features: topojson.feature(w10, w10.objects.countries).features
+    .filter(f => f.id !== "010" && d3.geoArea(f) < 2 * Math.PI) };
+  borders = topojson.mesh(w10, w10.objects.countries, (a, b) => a !== b);
+  dr = topojson.feature(w10, w10.objects.countries).features.find(f => f.id === CFG.countryId);
+  window.draw = draw;
+  window.DURATION = CFG.duration;
+  draw(0);
+})();
+</script>
+</body>
+</html>

@@ -36,6 +36,26 @@ Todo se edita en [`config.js`](config.js):
 - `flights`: los tramos del vuelo. Cada uno define el centro, `range` (distancia en metros), `tilt` (inclinación), `heading` (rotación) y duración. Para otro destino, cambiá las coordenadas.
 - `pinColor`, `startDelayMillis`, `endHoldMillis`.
 
+## Videos MP4 ya renderizados
+
+En [`videos/`](videos/) están los videos listos para usar (12 s, 30 fps):
+
+- `vuelo-rd-1920x1080.mp4`: horizontal (YouTube, web, presentaciones).
+- `vuelo-rd-1080x1920.mp4`: vertical (reels, stories, TikTok).
+
+Estos no usan Google, así que no necesitan API key. El globo es la imagen satelital **NASA Blue Marble** (dominio público) y el acercamiento termina en un mapa estilizado hecho con **Natural Earth** (dominio público), con República Dominicana resaltada y el pin sobre Santo Domingo. Los créditos aparecen chicos abajo a la derecha.
+
+Para volver a generarlos, por ejemplo después de cambiar textos, colores o tiempos en `render/scene.html`:
+
+```bash
+cd render
+npm install
+npm run render            # 1920x1080
+npm run render:vertical   # 1080x1920
+```
+
+Se necesitan Node.js, Chromium (lo instala Playwright con `npx playwright install chromium`) y `ffmpeg`.
+
 ## Alternativa sin código: Google Earth Studio
 
 Si preferís renderizar cuadro por cuadro en máxima calidad, mirá [`docs/google-earth-studio.md`](docs/google-earth-studio.md). Ahí están los keyframes listos para cargar en Earth Studio.
