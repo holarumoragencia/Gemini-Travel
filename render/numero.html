@@ -18,8 +18,54 @@
 <script type="module">
 import * as THREE from "three";
 import { TTFLoader } from "three/addons/loaders/TTFLoader.js";
-import { Font } from "three/addons/loaders/FontLoader.js";
-import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
+
+// Arma las formas de un carácter a partir de los contornos de la fuente. Decide qué es
+// agujero por contención (un contorno dentro de otro) y no por el sentido de giro, que
+// varía entre fuentes y hacía que algunos glifos (el "4") salieran huecos.
+function glyphShapes(font, ch, size) {
+  const g = font.glyphs[ch] || font.glyphs["?"];
+  const k = size / font.resolution;
+  const loops = [];
+  let path = null;
+  const t = (g.o || "").split(" ");
+  for (let i = 0; i < t.length;) {
+    const c = t[i++], n = () => +t[i++] * k;
+    if (c === "m") { path = new THREE.Path(); loops.push(path); path.moveTo(n(), n()); }
+    else if (c === "l") path.lineTo(n(), n());
+    else if (c === "q") { const x = n(), y = n(), cx = n(), cy = n(); path.quadraticCurveTo(cx, cy, x, y); }
+    else if (c === "b") { const x = n(), y = n(), c1x = n(), c1y = n(), c2x = n(), c2y = n(); path.bezierCurveTo(c1x, c1y, c2x, c2y, x, y); }
+  }
+  const pts = loops.map((l) => l.getPoints(10));
+  const inside = (p, poly) => {
+    let r = false;
+    for (let a = 0, b = poly.length - 1; a < poly.length; b = a++)
+      if ((poly[a].y > p.y) !== (poly[b].y > p.y) &&
+          p.x < ((poly[b].x - poly[a].x) * (p.y - poly[a].y)) / (poly[b].y - poly[a].y) + poly[a].x) r = !r;
+    return r;
+  };
+  const parent = pts.map((p, i) => {
+    let best = -1, bestArea = Infinity;
+    pts.forEach((q, j) => {
+      if (j === i || !inside(p[0], q)) return;
+      const a = Math.abs(THREE.ShapeUtils.area(q));
+      if (a < bestArea) { bestArea = a; best = j; }
+    });
+    return best;
+  });
+  const depth = (i) => (parent[i] < 0 ? 0 : 1 + depth(parent[i]));
+  const shapes = new Map();
+  pts.forEach((p, i) => {
+    if (depth(i) % 2) return;
+    const pp = THREE.ShapeUtils.isClockWise(p) ? p.slice().reverse() : p;
+    shapes.set(i, new THREE.Shape(pp));
+  });
+  pts.forEach((p, i) => {
+    if (!(depth(i) % 2)) return;
+    const hp = THREE.ShapeUtils.isClockWise(p) ? p : p.slice().reverse();
+    shapes.get(parent[i]).holes.push(new THREE.Path(hp));
+  });
+  return [...shapes.values()];
+}
 
 // Todo se puede cambiar por URL: numero.html?text=€15K&color=f2f2f2&bg=1
 const q = new URLSearchParams(location.search);
@@ -96,7 +142,7 @@ function build(font) {
   let x = 0;
   for (const ch of CFG.text) {
     if (ch === " ") { x += size * 0.35; continue; }
-    const geo = new TextGeometry(ch, { font, size, depth: 70, curveSegments: 10,
+    const geo = new THREE.ExtrudeGeometry(glyphShapes(font, ch, size), { depth: 70, curveSegments: 10,
       bevelEnabled: true, bevelThickness: 8, bevelSize: 6, bevelSegments: 4 });
     geo.computeBoundingBox();
     const b = geo.boundingBox;
@@ -151,7 +197,7 @@ function draw(t) {
 
 window.ready = (async () => {
   const json = await new Promise((res, rej) => new TTFLoader().load("assets/Inter-Black.otf", res, null, rej));
-  build(new Font(json));
+  build(json);
   draw(0);
 })();
 window.draw = draw;

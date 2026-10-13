@@ -69,6 +69,8 @@ Animación de 1 s: los caracteres de `€15K` caen desde arriba, rebotan y se as
 - `videos/numero-15k-png-alpha.zip`: secuencia PNG transparente.
 - `videos/numero-15k-preview.mp4`: vista previa sobre fondo azul.
 
+También está la variante `24hs` apoyada sobre el borde inferior (`videos/numero-24hs-*`), generada con `--query "text=24hs&floor=0.99"`.
+
 Para cambiar el texto, el color o los tiempos, usá los parámetros de `render/numero.html` (`text`, `color`, `duration`, `fall`, `stagger`, `floor`, `fill`, `shadow`):
 
 ```bash
