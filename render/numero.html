@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Número que cae</title>
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  canvas { display: block; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from "three";
+import { TTFLoader } from "three/addons/loaders/TTFLoader.js";
+import { Font } from "three/addons/loaders/FontLoader.js";
+import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
+
+// Todo se puede cambiar por URL: numero.html?text=€15K&color=f2f2f2&bg=1
+const q = new URLSearchParams(location.search);
+const CFG = {
+  text: q.get("text") || "€15K",
+  color: "#" + (q.get("color") || "efefef"),
+  duration: +(q.get("duration") || 1),   // segundos totales
+  stagger: +(q.get("stagger") || 0.05),  // retraso entre caracteres
+  floor: +(q.get("floor") || 0.64),      // altura del "suelo" (0 arriba, 1 abajo)
+  widthFill: +(q.get("fill") || 0.92),   // ancho del número respecto al cuadro
+  shadow: q.get("shadow") !== "0",       // sombra suave en el suelo
+  bg: q.get("bg"),                       // color de fondo solo para previsualizar
+};
+const W = +(q.get("w") || innerWidth), H = +(q.get("h") || innerHeight);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.setClearColor(0x000000, 0);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+if (CFG.bg) document.body.style.background = "#" + CFG.bg;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, W / H, 1, 5000);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f99, 1.6));
+const key = new THREE.DirectionalLight(0xffffff, 2.4);
+key.position.set(-300, 600, 500);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.radius = 8;
+key.shadow.bias = -0.0005;
+Object.assign(key.shadow.camera, { left: -600, right: 600, top: 600, bottom: -200, near: 10, far: 2000 });
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xdfe8ff, 1.2);
+rim.position.set(400, 200, -300);
+scene.add(rim);
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000),
+  new THREE.ShadowMaterial({ opacity: 0.22 }));
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+floor.visible = CFG.shadow;
+scene.add(floor);
+
+// Caída con gravedad y rebotes que pierden energía.
+// DROP y G se calculan en build(): arranca justo fuera de cuadro y tarda FALL segundos en tocar el suelo.
+const FALL = +(q.get("fall") || 0.3), REST = 0.36;
+let DROP = 1400, G = 2 * DROP / FALL ** 2, V0 = G * FALL;
+function fall(t) {
+  if (t <= 0) return { y: DROP, impact: -1, speed: 0, hits: 0 };
+  let y = DROP, v = 0, impact = -1, first = -1, speed = 0, hits = 0;
+  const dt = 1 / 1200;
+  for (let s = 0; s < t; s += dt) {
+    v -= G * dt; y += v * dt;
+    if (y <= 0) {
+      y = 0; impact = s; speed = -v; hits++;
+      if (first < 0) first = s;
+      v = -v * REST;
+      if (v < V0 * 0.04) v = 0;
+    }
+  }
+  return { y, impact: impact < 0 ? -1 : t - impact, first: first < 0 ? -1 : t - first, speed, hits };
+}
+
+const glyphs = [];
+function build(font) {
+  const mat = new THREE.MeshStandardMaterial({ color: CFG.color, roughness: 0.42, metalness: 0.05 });
+  const size = 200, gap = 14;
+  let x = 0;
+  for (const ch of CFG.text) {
+    if (ch === " ") { x += size * 0.35; continue; }
+    const geo = new TextGeometry(ch, { font, size, depth: 70, curveSegments: 10,
+      bevelEnabled: true, bevelThickness: 8, bevelSize: 6, bevelSegments: 4 });
+    geo.computeBoundingBox();
+    const b = geo.boundingBox;
+    // Pivote abajo al centro, para aplastar contra el suelo.
+    geo.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    const w = b.max.x - b.min.x;
+    const pivot = new THREE.Group();
+    pivot.add(mesh);
+    pivot.userData = { cx: x + w / 2, tilt: (glyphs.length % 2 ? 1 : -1) * 0.12 };
+    x += w + gap;
+    scene.add(pivot);
+    glyphs.push(pivot);
+  }
+  const total = x - gap;
+  glyphs.forEach((g) => (g.position.x = g.userData.cx - total / 2));
+
+  // Encuadre: el ancho del texto ocupa `widthFill` del cuadro y el suelo cae en `floor`.
+  const vfov = THREE.MathUtils.degToRad(camera.fov);
+  const visW = total / CFG.widthFill;
+  const dist = visW / camera.aspect / 2 / Math.tan(vfov / 2);
+  const visH = visW / camera.aspect;
+  const lookY = (CFG.floor - 0.5) * visH;     // el suelo (y=0) queda en `floor`
+  camera.position.set(0, lookY + dist * 0.08, dist);
+  camera.lookAt(0, lookY, 0);
+  DROP = lookY + visH * 0.62;                  // apenas por encima del borde superior
+  G = 2 * DROP / FALL ** 2;
+  V0 = G * FALL;
+}
+
+function draw(t) {
+  glyphs.forEach((g, i) => {
+    const f = fall(t - i * CFG.stagger);
+    g.position.y = f.y;
+    // Aplastar y estirar en cada impacto.
+    let sy = 1;
+    if (f.impact >= 0) {
+      const k = Math.min(f.speed / V0, 1) * 0.28;
+      sy = 1 - k * Math.exp(-f.impact * 30) * Math.cos(f.impact * 45);
+    } else if (f.y > 0) {
+      sy = 1.06; // estirado mientras cae
+    }
+    g.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));
+    // Leve inclinación que se asienta después del primer golpe.
+    g.rotation.z = f.first >= 0
+      ? g.userData.tilt * Math.exp(-f.first * 7) * Math.cos(f.first * 22)
+      : g.userData.tilt;
+  });
+  renderer.render(scene, camera);
+}
+
+window.ready = (async () => {
+  const json = await new Promise((res, rej) => new TTFLoader().load("assets/Inter-Black.otf", res, null, rej));
+  build(new Font(json));
+  draw(0);
+})();
+window.draw = draw;
+window.DURATION = CFG.duration;
+
+if (q.has("play")) {
+  window.ready.then(() => {
+    const t0 = performance.now();
+    const loop = () => { draw(((performance.now() - t0) / 1000) % CFG.duration); requestAnimationFrame(loop); };
+    loop();
+  });
+}
+</script>
+</body>
+</html>

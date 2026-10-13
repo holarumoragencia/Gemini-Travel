@@ -59,3 +59,20 @@ Se necesitan Node.js, Chromium (lo instala Playwright con `npx playwright instal
 ## Alternativa sin código: Google Earth Studio
 
 Si preferís renderizar cuadro por cuadro en máxima calidad, mirá [`docs/google-earth-studio.md`](docs/google-earth-studio.md). Ahí están los keyframes listos para cargar en Earth Studio.
+
+## Número que cae (€15K) con fondo transparente
+
+Animación de 1 s: los caracteres de `€15K` caen desde arriba, rebotan y se asientan. Sirve para ponerla detrás de una persona en un reel.
+
+- `videos/numero-15k-1080x1920.mov`: ProRes 4444 con canal alfa, para Premiere, After Effects o DaVinci.
+- `videos/numero-15k-1080x1920.webm`: VP9 con alfa (web, CapCut).
+- `videos/numero-15k-png-alpha.zip`: secuencia PNG transparente.
+- `videos/numero-15k-preview.mp4`: vista previa sobre fondo azul.
+
+Para cambiar el texto, el color o los tiempos, usá los parámetros de `render/numero.html` (`text`, `color`, `duration`, `fall`, `stagger`, `floor`, `fill`, `shadow`):
+
+```bash
+cd render
+node render.js --scene numero.html --w 1080 --h 1920 --alpha \
+  --query "text=%E2%82%AC20K&color=ffd84d" --out ../videos/numero-20k.mov
+```
