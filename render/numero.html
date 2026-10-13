@@ -76,7 +76,7 @@ const CFG = {
   stagger: +(q.get("stagger") || 0.05),  // retraso entre caracteres
   floor: +(q.get("floor") || 0.64),      // altura del "suelo" (0 arriba, 1 abajo)
   widthFill: +(q.get("fill") || 0.92),   // ancho del número respecto al cuadro
-  shadow: q.get("shadow") !== "0",       // sombra suave en el suelo
+  shadow: q.get("shadow") === "1",       // sombra suave en el suelo (apagada por defecto)
   bg: q.get("bg"),                       // color de fondo solo para previsualizar
 };
 const W = +(q.get("w") || innerWidth), H = +(q.get("h") || innerHeight);
