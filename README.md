@@ -60,9 +60,9 @@ Se necesitan Node.js, Chromium (lo instala Playwright con `npx playwright instal
 
 Si preferís renderizar cuadro por cuadro en máxima calidad, mirá [`docs/google-earth-studio.md`](docs/google-earth-studio.md). Ahí están los keyframes listos para cargar en Earth Studio.
 
-## Reel vertical: China Milenaria y Futurista
+## Reel China, versión placa (primer borrador)
 
-Reel publicitario de 20 s en 1080x1920 con los colores de Gemini Travel: intro con el título, una placa por ciudad con el recorrido, lo que incluye, el precio con las cuotas y el cierre con el isologo animado.
+Primera versión, descartada: reel de 20 s en 1080x1920 con los colores de Gemini Travel: intro con el título, una placa por ciudad con el recorrido, lo que incluye, el precio con las cuotas y el cierre con el isologo animado.
 
 1. Copiá los videos a [`clips/`](clips/LEEME.md) con los nombres de esa lista. Si falta alguno, se usa una foto de muestra y aparece una etiqueta roja "FALTA CLIP".
 2. Textos, precios y tiempos se editan en [`render/reel-config.js`](render/reel-config.js). El diseño y la animación están en `render/reel.html`.
@@ -71,6 +71,24 @@ Reel publicitario de 20 s en 1080x1920 con los colores de Gemini Travel: intro c
 ```bash
 cd render
 npm install
-npm run reel            # videos/reel-china-1080x1920.mp4
+npm run reel            # videos/reel-china-1080x1920.mp4 (ojo: pisa el reel de Remotion)
 npm run reel:preview    # lo mismo a 15 fps, para revisar rápido
 ```
+
+## Reel China Milenaria y Futurista (Remotion)
+
+Anuncio vertical de 20 s (1080x1920, 30 fps) para Meta Ads, hecho con [Remotion](https://www.remotion.dev). Video de stock a pantalla completa, texto cinético y transiciones con movimiento: zoom con desenfoque, barridos rápidos, giro y destellos. Arranca con el video visto a través de las letras de CHINA y cierra con el isologo animado. No tiene audio, así que la música se suma en Meta o se agrega al proyecto.
+
+- El guion (planos, duración, textos y transiciones) está en [`reel-china/src/ReelChina.tsx`](reel-china/src/ReelChina.tsx), en la lista `SHOTS`.
+- Precio y cierre: `reel-china/src/Scenes.tsx`. Estilos de texto: `reel-china/src/Text.tsx`. Transiciones: `reel-china/src/transitions.tsx`.
+- Los clips no se suben al repo porque pesan mucho. Se preparan desde los originales de Pexels:
+
+```bash
+cd reel-china
+npm install
+./preparar-clips.sh /carpeta/con/los/videos   # crea public/clips/*.mp4
+npm run studio    # vista previa interactiva en el navegador
+npm run render    # videos/reel-china-1080x1920.mp4
+```
+
+Remotion es gratis para personas y empresas de hasta 3 empleados.

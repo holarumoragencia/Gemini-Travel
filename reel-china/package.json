@@ -1,0 +1,19 @@
+{
+  "name": "gemini-reel-china",
+  "private": true,
+  "description": "Reel publicitario China Milenaria y Futurista (Remotion)",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render ReelChina ../videos/reel-china-1080x1920.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.535",
+    "@remotion/fonts": "^4.0.535",
+    "@remotion/transitions": "^4.0.535",
+    "@types/react": "^18.3.31",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.535",
+    "typescript": "^5.9.3"
+  }
+}
