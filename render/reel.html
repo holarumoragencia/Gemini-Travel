@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="es">
+<head>
+<link rel="icon" href="data:,">
+<meta charset="utf-8">
+<title>Reel China</title>
+<script src="reel-config.js"></script>
+<style>
+  @font-face { font-family: M; font-weight: 500; src: url(node_modules/@fontsource/montserrat/files/montserrat-latin-500-normal.woff2); }
+  @font-face { font-family: M; font-weight: 600; src: url(node_modules/@fontsource/montserrat/files/montserrat-latin-600-normal.woff2); }
+  @font-face { font-family: M; font-weight: 700; src: url(node_modules/@fontsource/montserrat/files/montserrat-latin-700-normal.woff2); }
+  @font-face { font-family: M; font-weight: 800; src: url(node_modules/@fontsource/montserrat/files/montserrat-latin-800-normal.woff2); }
+  @font-face { font-family: M; font-weight: 900; src: url(node_modules/@fontsource/montserrat/files/montserrat-latin-900-normal.woff2); }
+  :root { --azul: #017ea6; --azulOscuro: #0b5f80; --dorado: #c4a356; --marino: #2c405a; --acero: #6a8cb1; }
+  html, body { margin: 0; background: transparent; }
+  #stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; font-family: M, sans-serif; color: #fff; }
+  .layer { position: absolute; inset: 0; }
+  .hide { display: none; }
+
+  #sombra { background:
+      linear-gradient(to bottom, rgba(0,30,50,.55) 0, rgba(0,30,50,0) 26%),
+      linear-gradient(to top, rgba(0,30,50,.6) 0, rgba(0,30,50,0) 45%); }
+
+  /* Intro */
+  #intro .tag { position: absolute; left: 70px; top: 300px; background: var(--dorado); color: #fff;
+    font-weight: 800; font-size: 34px; letter-spacing: 2px; padding: 16px 30px; border-radius: 0 40px 40px 0;
+    transform-origin: left center; }
+  #intro .titulo { position: absolute; left: 60px; top: 380px; font-weight: 900; font-size: 262px; line-height: 1;
+    letter-spacing: -6px; text-shadow: 0 10px 40px rgba(0,40,70,.45); white-space: nowrap; }
+  #intro .titulo span { display: inline-block; }
+  .bajada { position: absolute; left: 70px; overflow: hidden; }
+  .bajada div { font-weight: 800; font-size: 104px; line-height: 1.05; color: #fff; text-shadow: 0 6px 30px rgba(0,40,70,.5); }
+
+  /* Ruta */
+  #ruta { position: absolute; left: 70px; right: 70px; top: 250px; height: 90px; }
+  #ruta .linea { position: absolute; left: 0; right: 0; top: 18px; height: 4px; background: rgba(255,255,255,.35); border-radius: 2px; }
+  #ruta .avance { position: absolute; left: 0; top: 18px; height: 4px; background: var(--dorado); border-radius: 2px; }
+  #ruta .punto { position: absolute; top: 8px; width: 24px; height: 24px; margin-left: -12px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 0 4px rgba(255,255,255,.25); }
+  #ruta .punto.on { background: var(--dorado); box-shadow: 0 0 0 6px rgba(196,163,86,.35); }
+  #ruta .nombre { position: absolute; top: 46px; transform: translateX(-50%); font-size: 20px; font-weight: 700;
+    letter-spacing: 1px; white-space: nowrap; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+
+  /* Placa de ciudad (inspirada en la placa: bandas con esquinas redondeadas a la derecha) */
+  #card { position: absolute; left: 0; top: 1060px; width: 900px; }
+  #card .banda { position: relative; transform-origin: left center; }
+  #card .oro { display: inline-flex; align-items: center; gap: 18px; background: var(--dorado);
+    padding: 18px 44px 18px 70px; border-radius: 0 50px 0 0; font-weight: 800; font-size: 40px; letter-spacing: 1px; }
+  #card .oro svg { width: 40px; height: 40px; }
+  #card .azul { background: var(--azul); padding: 26px 50px 26px 70px; border-radius: 0 60px 60px 0;
+    font-weight: 900; line-height: 1; white-space: nowrap; overflow: hidden; }
+  #card .blanco { background: #fff; color: var(--azul); padding: 30px 50px 34px 70px; border-radius: 0 0 60px 0;
+    margin-right: 120px; }
+  #card .item { display: flex; align-items: center; gap: 22px; font-weight: 700; font-size: 42px; line-height: 1.25; }
+  #card .item + .item { margin-top: 14px; }
+  #card .item i { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--dorado); }
+
+  /* Incluye */
+  #tinte { background: linear-gradient(160deg, rgba(1,126,166,.86), rgba(11,60,90,.9)); }
+  #incluye .tit { position: absolute; left: 70px; top: 330px; font-weight: 900; font-size: 120px; letter-spacing: -2px; }
+  #incluye .subtit { position: absolute; left: 76px; top: 470px; font-weight: 700; font-size: 38px; color: var(--dorado); letter-spacing: 3px; }
+  #incluye .fila { position: absolute; left: 70px; right: 70px; height: 200px; display: flex; align-items: center; gap: 34px;
+    background: #fff; border-radius: 0 100px 100px 0; color: var(--azulOscuro); padding: 0 40px; box-sizing: border-box; }
+  #incluye .ico { flex: none; width: 128px; height: 128px; border-radius: 50%; background: var(--dorado);
+    display: flex; align-items: center; justify-content: center; }
+  #incluye .ico svg { width: 72px; height: 72px; fill: #fff; }
+  #incluye .t1 { font-weight: 800; font-size: 44px; line-height: 1.15; }
+  #incluye .t2 { font-weight: 600; font-size: 31px; color: var(--azul); margin-top: 6px; }
+
+  /* Precio */
+  #precio .datos { position: absolute; left: 70px; top: 330px; display: flex; gap: 20px; }
+  #precio .chip { background: #fff; color: var(--azul); font-weight: 800; font-size: 38px; padding: 16px 28px; border-radius: 50px; }
+  #precio .origen { position: absolute; left: 70px; top: 440px; font-weight: 800; font-size: 46px; letter-spacing: 2px; }
+  #precio .origen b { color: var(--dorado); }
+  #precio .caja { position: absolute; left: 0; top: 590px; width: 980px; background: #fff; color: var(--azul);
+    border-radius: 0 90px 90px 0; padding: 50px 60px 50px 70px; box-sizing: border-box; }
+  #precio .usd { font-weight: 900; font-size: 64px; }
+  #precio .monto { font-weight: 900; font-size: 210px; line-height: .9; letter-spacing: -6px; }
+  #precio .det { font-weight: 700; font-size: 38px; margin-top: 20px; color: var(--azulOscuro); }
+  #precio .cuotas { position: absolute; left: 0; top: 1100px; background: var(--dorado); padding: 30px 60px 30px 70px;
+    border-radius: 0 70px 70px 0; font-weight: 900; font-size: 50px; line-height: 1.1; width: 900px; box-sizing: border-box; }
+  #precio .cuotasDet { position: absolute; left: 70px; right: 70px; top: 1290px; font-weight: 700; font-size: 44px; line-height: 1.3; }
+  #precio .legal { position: absolute; left: 70px; right: 70px; top: 1470px; font-weight: 500; font-size: 22px; opacity: .85; }
+
+  /* Cierre */
+  #cierre { background: radial-gradient(ellipse at 50% 45%, var(--acero) 0%, #4c6b8c 45%, var(--marino) 100%); }
+  #logo { position: absolute; left: 140px; top: 760px; width: 800px; overflow: visible; }
+  #logo path, #logo polygon, #logo rect { fill: #fff; }
+  #avion { position: absolute; left: 540px; top: 1031px; width: 300px; height: 300px; margin: -150px 0 0 -150px; }
+  #avion svg { width: 100%; height: 100%; fill: #fff; }
+  #estela { position: absolute; top: 1028px; height: 6px; background: linear-gradient(to right, rgba(255,255,255,0), #fff); border-radius: 3px; }
+  #cierre .cta { position: absolute; left: 0; right: 0; top: 1150px; text-align: center; font-weight: 800; font-size: 42px;
+    letter-spacing: 3px; color: #fff; }
+  #cierre .cta2 { position: absolute; left: 0; right: 0; top: 1220px; text-align: center; font-weight: 600; font-size: 32px;
+    letter-spacing: 2px; color: rgba(255,255,255,.8); }
+
+  /* Transiciones */
+  .wipe { position: absolute; left: -50%; width: 200%; height: 140%; top: -20%; }
+  #flash { background: #fff; }
+  #falta { position: absolute; right: 30px; top: 40px; background: rgba(200,30,30,.9); color: #fff; font: 700 24px M, sans-serif;
+    padding: 10px 18px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="layer" id="sombra"></div>
+  <div class="layer" id="tinte"></div>
+
+  <div class="layer" id="intro">
+    <div class="tag"></div>
+    <div class="titulo"></div>
+    <div class="bajada" style="top:700px"><div></div></div>
+    <div class="bajada" style="top:812px"><div></div></div>
+  </div>
+
+  <div class="layer" id="ciudades">
+    <div id="ruta"><div class="linea"></div><div class="avance"></div></div>
+    <div id="card">
+      <div class="banda"><div class="oro"></div></div>
+      <div class="banda"><div class="azul"></div></div>
+      <div class="banda"><div class="blanco"></div></div>
+    </div>
+  </div>
+
+  <div class="layer" id="incluye"><div class="tit">INCLUYE</div><div class="subtit">14 NOCHES DE CIRCUITO</div></div>
+
+  <div class="layer" id="precio">
+    <div class="datos"></div>
+    <div class="origen"></div>
+    <div class="caja"><div class="usd">USD</div><div class="monto"></div><div class="det"></div></div>
+    <div class="cuotas"></div>
+    <div class="cuotasDet"></div>
+    <div class="legal"></div>
+  </div>
+
+  <div class="layer" id="cierre">
+    <div id="estela"></div>
+    <div id="avion"></div>
+    <div id="logoBox"></div>
+    <div class="cta"></div>
+    <div class="cta2"></div>
+  </div>
+
+  <div class="layer" id="wipes">
+    <div class="wipe" id="w1" style="background:var(--dorado)"></div>
+    <div class="wipe" id="w2" style="background:var(--azul)"></div>
+  </div>
+  <div class="layer" id="flash"></div>
+  <div id="falta" class="hide"></div>
+</div>
+
+<script>
+const R = window.REEL;
+const $ = (s, el = document) => el.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const easeInOut = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const backOut = (x) => { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const show = (el, on) => el.classList.toggle("hide", !on);
+const faltan = (new URLSearchParams(location.search).get("faltan") || "").split(",").filter(Boolean);
+
+const ICONOS = {
+  avion: '<svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>',
+  cama: '<svg viewBox="0 0 24 24"><path d="M7 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm12-6h-8v7H3V5H1v15h2v-3h18v3h2v-9a4 4 0 0 0-4-4z"/></svg>',
+  tren: '<svg viewBox="0 0 24 24"><path d="M12 2C8 2 4 2.5 4 6v9.5A3.5 3.5 0 0 0 7.5 19L6 20.5v.5h2.2l2-2h3.6l2 2H18v-.5L16.5 19a3.5 3.5 0 0 0 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM11 10H6V6h5v4zm2 0V6h5v4h-5zm3.5 7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+  escudo: '<svg viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.6 3.8 10.7 9 12 5.2-1.3 9-6.4 9-12V5l-9-4zm-1 15-4-4 1.4-1.4L11 13.2l5.6-5.6L18 9l-7 7z"/></svg>',
+  luna: '<svg viewBox="0 0 24 24" fill="#fff"><path d="M12.3 2a10 10 0 1 0 9.7 12.4A8 8 0 0 1 12.3 2z"/></svg>',
+};
+
+// ---------- Armado ----------
+const ciudades = R.escenas.filter((e) => e.id === "ciudad");
+const esc = (id) => R.escenas.find((e) => e.id === id);
+
+$("#intro .tag").textContent = R.intro.etiqueta;
+$("#intro .titulo").innerHTML = [...R.intro.titulo].map((c) => `<span>${c}</span>`).join("");
+document.querySelectorAll(".bajada div").forEach((d, i) => d.textContent = R.intro.bajada[i] || "");
+
+const ruta = $("#ruta");
+ciudades.forEach((c, i) => {
+  const x = (i / (ciudades.length - 1)) * 100;
+  ruta.insertAdjacentHTML("beforeend",
+    `<div class="punto" style="left:${x}%"></div><div class="nombre" style="left:${x}%">${c.ciudad.replace("ZHANGJIAJIE", "ZHANGJ.")}</div>`);
+});
+
+const inc = $("#incluye");
+R.incluye.forEach((f, i) => inc.insertAdjacentHTML("beforeend",
+  `<div class="fila" style="top:${590 + i * 240}px"><div class="ico">${ICONOS[f.icono]}</div>
+   <div><div class="t1">${f.texto}</div><div class="t2">${f.sub}</div></div></div>`));
+
+$("#precio .datos").innerHTML = R.precio.datos.map((d) => `<div class="chip">${d}</div>`).join("");
+$("#precio .origen").innerHTML = `✈ <b>${R.precio.origen}</b>`;
+$("#precio .det").textContent = R.precio.detalle;
+$("#precio .cuotas").textContent = R.precio.cuotas;
+$("#precio .cuotasDet").textContent = R.precio.cuotasDetalle;
+$("#precio .legal").textContent = R.precio.legal;
+$("#cierre .cta").textContent = "RESERVÁ HOY Y ASEGURÁ TU LUGAR";
+$("#cierre .cta2").textContent = R.cierre.texto.toUpperCase();
+
+// Medida del nombre de ciudad: se achica para que entre en la banda
+const medir = document.createElement("canvas").getContext("2d");
+function tamCiudad(txt) {
+  medir.font = "900 150px M";
+  return Math.min(150, Math.floor(150 * 760 / medir.measureText(txt).width));
+}
+
+window.ready = (async () => {
+  await document.fonts.load("900 100px M");
+  await Promise.all(["500", "600", "700", "800"].map((w) => document.fonts.load(`${w} 40px M`)));
+  const svg = await (await fetch("assets/gemini-logo-blanco.svg")).text();
+  $("#logoBox").innerHTML = svg;
+  const s = $("#logoBox svg");
+  s.id = "logo";
+  s.querySelector("defs").remove();
+  // Partes del isologo: avión chico, letras GEMINI, TRAVEL y las dos líneas
+  const grupos = s.querySelectorAll("#Capa_1-2 > g");
+  window.LOGO = {
+    avionChico: s.querySelector("#Capa_1-2 > path"),
+    letras: [...grupos[0].children],
+    travel: grupos[1],
+    lineas: [...s.querySelectorAll("#Capa_1-2 > path")].slice(1),
+  };
+  // Avión grande: el mismo trazo del isologo, recortado
+  const d = LOGO.avionChico.getAttribute("d");
+  $("#avion").innerHTML = `<svg viewBox="2525 795 315 310"><path d="${d}"/></svg>`;
+})();
+
+// ---------- Animación ----------
+let ultimaCiudad = -1;
+function pintarCiudad(i) {
+  if (i === ultimaCiudad) return;
+  ultimaCiudad = i;
+  const c = ciudades[i];
+  $("#card .oro").innerHTML = `${ICONOS.luna}${c.noches} NOCHES`;
+  const az = $("#card .azul");
+  az.textContent = c.ciudad;
+  az.style.fontSize = tamCiudad(c.ciudad) + "px";
+  $("#card .blanco").innerHTML = c.destacados.map((d) => `<div class="item"><i></i>${d}</div>`).join("");
+}
+
+// Barrido diagonal en dos colores que tapa el corte de clip en el instante `tc`
+function barrido(t, tc) {
+  const p = prog(t, tc - 0.32, tc + 0.32);
+  const on = p > 0 && p < 1;
+  ["#w1", "#w2"].forEach((id, k) => {
+    const el = $(id);
+    const q = easeInOut(clamp((p - k * 0.12) / 0.88));
+    el.style.display = on ? "block" : "none";
+    el.style.transform = `rotate(-28deg) translateX(${(-110 + q * 220).toFixed(2)}%)`;
+  });
+  return on;
+}
+
+window.DURATION = R.duracion;
+window.draw = function (t) {
+  const E = { intro: esc("intro"), incluye: esc("incluye"), precio: esc("precio"), cierre: esc("cierre") };
+  const enCiudad = ciudades.findIndex((c) => t >= c.inicio && t < c.fin);
+  const ini = ciudades[0].inicio, fin = ciudades[ciudades.length - 1].fin;
+
+  // Barridos grandes entre bloques
+  const cortes = [ini, E.incluye.inicio, E.precio.inicio, E.cierre.inicio];
+  let barr = false;
+  for (const c of cortes) barr = barrido(t, c) || barr;
+  if (!barr) barrido(t, -10);
+
+  // Flash corto entre ciudades
+  let fl = 0;
+  ciudades.slice(1).forEach((c) => { const d = Math.abs(t - c.inicio); if (d < 0.12) fl = Math.max(fl, (1 - d / 0.12) * 0.55); });
+  $("#flash").style.opacity = fl;
+
+  show($("#sombra"), t < E.incluye.inicio);
+  show($("#tinte"), t >= E.incluye.inicio && t < E.cierre.inicio);
+  $("#tinte").style.opacity = t >= E.precio.inicio ? 0.7 : 1;
+
+  // INTRO
+  const intro = $("#intro");
+  show(intro, t < E.intro.fin);
+  if (t < E.intro.fin) {
+    const tag = $("#intro .tag");
+    const pt = easeOut(prog(t, 0.15, 0.55));
+    tag.style.transform = `scaleX(${pt})`;
+    tag.style.opacity = pt;
+    $("#intro .titulo").querySelectorAll("span").forEach((s, i) => {
+      const p = easeOut(prog(t, 0.25 + i * 0.09, 0.75 + i * 0.09));
+      s.style.opacity = p;
+      s.style.filter = `blur(${((1 - p) * 26).toFixed(1)}px)`;
+      s.style.transform = `translateY(${((1 - p) * 60).toFixed(1)}px) scale(${(1.25 - 0.25 * p).toFixed(3)})`;
+    });
+    document.querySelectorAll(".bajada div").forEach((d, i) => {
+      const p = easeOut(prog(t, 1.05 + i * 0.18, 1.55 + i * 0.18));
+      d.style.transform = `translateY(${((1 - p) * 110).toFixed(1)}%)`;
+    });
+    // Leve empuje de todo el bloque
+    intro.style.transform = `scale(${(1 + 0.03 * prog(t, 0, E.intro.fin)).toFixed(4)})`;
+    intro.style.transformOrigin = "20% 30%";
+  }
+
+  // CIUDADES
+  show($("#ciudades"), t >= ini && t < fin);
+  if (enCiudad > -1) {
+    const c = ciudades[enCiudad];
+    pintarCiudad(enCiudad);
+    const local = t - c.inicio, dur = c.fin - c.inicio;
+    const bandas = document.querySelectorAll("#card .banda");
+    bandas.forEach((b, k) => {
+      const pin = easeOut(prog(local, 0.05 + k * 0.07, 0.4 + k * 0.07));
+      const pout = easeInOut(prog(local, dur - 0.2 + k * 0.03, dur + k * 0.03));
+      const x = (1 - pin) * -105 + pout * -105;
+      b.style.transform = `translateX(${x.toFixed(2)}%)`;
+    });
+    // Ruta
+    const total = ciudades.length - 1;
+    const avance = enCiudad === 0 ? 0 : (enCiudad - 1 + easeOut(prog(local, 0, 0.45))) / total;
+    $("#ruta .avance").style.width = (avance * 100).toFixed(2) + "%";
+    document.querySelectorAll("#ruta .punto").forEach((p, k) => p.classList.toggle("on", k <= enCiudad));
+    const pr = easeOut(prog(t, ini, ini + 0.4));
+    ruta.style.opacity = pr;
+    ruta.style.transform = `translateY(${((1 - pr) * -40).toFixed(1)}px)`;
+  }
+
+  // INCLUYE
+  show(inc, t >= E.incluye.inicio && t < E.incluye.fin);
+  if (t >= E.incluye.inicio && t < E.incluye.fin) {
+    const l = t - E.incluye.inicio;
+    const pt = easeOut(prog(l, 0.15, 0.5));
+    $("#incluye .tit").style.transform = `translateX(${((1 - pt) * -120).toFixed(1)}px)`;
+    $("#incluye .tit").style.opacity = pt;
+    $("#incluye .subtit").style.opacity = easeOut(prog(l, 0.3, 0.6));
+    inc.querySelectorAll(".fila").forEach((f, i) => {
+      const p = prog(l, 0.35 + i * 0.2, 0.75 + i * 0.2);
+      f.style.transform = `translateX(${((1 - easeOut(p)) * -110).toFixed(2)}%)`;
+      const ic = f.querySelector(".ico");
+      ic.style.transform = `scale(${backOut(prog(l, 0.55 + i * 0.2, 0.9 + i * 0.2)).toFixed(3)}) rotate(${((1 - easeOut(p)) * -90).toFixed(1)}deg)`;
+    });
+  }
+
+  // PRECIO
+  const pre = $("#precio");
+  show(pre, t >= E.precio.inicio && t < E.precio.fin);
+  if (t >= E.precio.inicio && t < E.precio.fin) {
+    const l = t - E.precio.inicio;
+    pre.querySelectorAll(".chip").forEach((c, i) => {
+      const p = backOut(prog(l, 0.2 + i * 0.12, 0.55 + i * 0.12));
+      c.style.transform = `scale(${p.toFixed(3)})`;
+    });
+    const po = easeOut(prog(l, 0.4, 0.75));
+    $("#precio .origen").style.opacity = po;
+    $("#precio .origen").style.transform = `translateY(${((1 - po) * 30).toFixed(1)}px)`;
+    const pc = easeOut(prog(l, 0.5, 0.9));
+    $("#precio .caja").style.transform = `translateX(${((1 - pc) * -105).toFixed(2)}%)`;
+    const cuenta = easeOut(prog(l, 0.7, 1.6));
+    $("#precio .monto").textContent = Math.round(R.precio.monto * cuenta).toLocaleString("es-AR");
+    const pq = easeOut(prog(l, 1.5, 1.85));
+    $("#precio .cuotas").style.transform = `translateX(${((1 - pq) * -105).toFixed(2)}%)`;
+    // Pulso del botón de cuotas
+    const pulso = l > 2.2 ? 1 + 0.025 * Math.sin((l - 2.2) * 9) : 1;
+    $("#precio .cuotas").style.scale = pulso.toFixed(4);
+    const pd = easeOut(prog(l, 1.8, 2.15));
+    $("#precio .cuotasDet").style.opacity = pd;
+    $("#precio .cuotasDet").style.transform = `translateY(${((1 - pd) * 30).toFixed(1)}px)`;
+    $("#precio .legal").style.opacity = easeOut(prog(l, 2, 2.4)) * 0.85;
+  }
+
+  // CIERRE: avión aparece, sale disparado dejando la estela de TRAVEL y caen las letras GEMINI
+  const cie = $("#cierre");
+  show(cie, t >= E.cierre.inicio);
+  if (t >= E.cierre.inicio && window.LOGO) {
+    const l = t - E.cierre.inicio;
+    const av = $("#avion");
+    const pop = backOut(prog(l, 0.1, 0.45));
+    const vuela = easeInOut(prog(l, 0.5, 0.95));
+    // Termina encima del avioncito del isologo (x≈896)
+    av.style.transform = `translateX(${(vuela * 356).toFixed(1)}px) scale(${(pop * (1 - 0.71 * vuela)).toFixed(3)})`;
+    av.style.filter = `blur(${(Math.sin(vuela * Math.PI) * 6).toFixed(1)}px)`;
+    av.style.opacity = 1 - prog(l, 1.0, 1.15);
+    const est = $("#estela");
+    est.style.left = "140px";
+    est.style.width = (vuela * 700).toFixed(1) + "px";
+    est.style.opacity = vuela > 0 ? 1 - prog(l, 0.95, 1.2) : 0;
+
+    LOGO.travel.style.opacity = easeOut(prog(l, 0.95, 1.2));
+    LOGO.lineas.forEach((ln) => {
+      ln.style.transformBox = "fill-box";
+      ln.style.transformOrigin = "left center";
+      ln.style.transform = `scaleX(${easeOut(prog(l, 0.9, 1.25)).toFixed(3)})`;
+    });
+    const pa = prog(l, 0.95, 1.0);
+    LOGO.avionChico.style.transformBox = "fill-box";
+    LOGO.avionChico.style.transformOrigin = "center";
+    LOGO.avionChico.style.transform = `scale(${pa.toFixed(3)})`;
+    LOGO.letras.forEach((le, i) => {
+      const p = prog(l, 1.0 + i * 0.07, 1.35 + i * 0.07);
+      le.style.opacity = clamp(p * 3);
+      le.style.transform = `translateY(${((1 - backOut(p)) * -380).toFixed(1)}px)`;
+    });
+    ["#cierre .cta", "#cierre .cta2"].forEach((s, i) => {
+      const p = easeOut(prog(l, 1.55 + i * 0.15, 1.9 + i * 0.15));
+      $(s).style.opacity = p;
+      $(s).style.transform = `translateY(${((1 - p) * 30).toFixed(1)}px)`;
+    });
+  }
+
+  // Aviso de clip faltante
+  const escena = R.escenas.find((e) => t >= e.inicio && t < e.fin);
+  const f = $("#falta");
+  const falta = escena && escena.clip && faltan.includes(escena.clip);
+  show(f, falta);
+  if (falta) f.textContent = `FALTA CLIP: clips/${escena.clip}.mp4`;
+};
+</script>
+</body>
+</html>

@@ -59,3 +59,18 @@ Se necesitan Node.js, Chromium (lo instala Playwright con `npx playwright instal
 ## Alternativa sin código: Google Earth Studio
 
 Si preferís renderizar cuadro por cuadro en máxima calidad, mirá [`docs/google-earth-studio.md`](docs/google-earth-studio.md). Ahí están los keyframes listos para cargar en Earth Studio.
+
+## Reel vertical: China Milenaria y Futurista
+
+Reel publicitario de 20 s en 1080x1920 con los colores de Gemini Travel: intro con el título, una placa por ciudad con el recorrido, lo que incluye, el precio con las cuotas y el cierre con el isologo animado.
+
+1. Copiá los videos a [`clips/`](clips/LEEME.md) con los nombres de esa lista. Si falta alguno, se usa una foto de muestra y aparece una etiqueta roja "FALTA CLIP".
+2. Textos, precios y tiempos se editan en [`render/reel-config.js`](render/reel-config.js). El diseño y la animación están en `render/reel.html`.
+3. Renderizá:
+
+```bash
+cd render
+npm install
+npm run reel            # videos/reel-china-1080x1920.mp4
+npm run reel:preview    # lo mismo a 15 fps, para revisar rápido
+```

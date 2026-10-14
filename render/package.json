@@ -1,12 +1,15 @@
 {
   "name": "gemini-travel-render",
   "private": true,
-  "description": "Renderiza el vuelo del globo a República Dominicana a MP4",
+  "description": "Renderiza los videos de Gemini Travel a MP4",
   "scripts": {
     "render": "node render.js",
-    "render:vertical": "node render.js --w 1080 --h 1920"
+    "render:vertical": "node render.js --w 1080 --h 1920",
+    "reel": "node reel.js",
+    "reel:preview": "node reel.js --preview"
   },
   "dependencies": {
+    "@fontsource/montserrat": "^5.3.0",
     "d3-array": "^3.2.4",
     "d3-geo": "^3.1.1",
     "playwright": "^1.50.0",
