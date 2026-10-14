@@ -4,7 +4,9 @@
   "description": "Renderiza el vuelo del globo a República Dominicana a MP4",
   "scripts": {
     "render": "node render.js",
-    "render:vertical": "node render.js --w 1080 --h 1920"
+    "render:vertical": "node render.js --w 1080 --h 1920",
+    "render:isologo": "node render.js --scene isologo.html --name isologo --w 1080 --h 1920 --sub 4 --grain",
+    "render:isologo:horizontal": "node render.js --scene isologo.html --name isologo --w 1920 --h 1080 --sub 4 --grain"
   },
   "dependencies": {
     "d3-array": "^3.2.4",

@@ -56,6 +56,23 @@ npm run render:vertical   # 1080x1920
 
 Se necesitan Node.js, Chromium (lo instala Playwright con `npx playwright install chromium`) y `ffmpeg`.
 
+## Motion del isologo
+
+[`render/isologo.html`](render/isologo.html) anima el isologo de Gemini Travel (`render/assets/isologo-gemini-travel-blanco.svg`) sobre fondo celeste `#5a7d9f` con viñeta. Arranca con un punto que viaja al centro y se convierte en el avión. El avión sale disparado, vuelve desde la izquierda dibujando la línea, TRAVEL aparece a su paso y al final caen las letras de GEMINI. Dura 5,5 s.
+
+- `videos/isologo-1080x1920.mp4`: vertical (reels, stories, TikTok).
+- `videos/isologo-1920x1080.mp4`: horizontal.
+
+Para verla en vivo, serví la carpeta `render/` (`python3 -m http.server 8000`) y abrí <http://localhost:8000/isologo.html>: se reproduce en loop. Los tiempos están en el objeto `T` y los colores de la viñeta en el `radialGradient` del archivo. Para volver a renderizar:
+
+```bash
+cd render
+npm run render:isologo              # 1080x1920
+npm run render:isologo:horizontal   # 1920x1080
+```
+
+Se renderiza con `--sub 4`, que captura 4 subcuadros por cuadro y los promedia para lograr motion blur real, y con `--grain`, un grano suave que evita las bandas en el degradé.
+
 ## Alternativa sin código: Google Earth Studio
 
 Si preferís renderizar cuadro por cuadro en máxima calidad, mirá [`docs/google-earth-studio.md`](docs/google-earth-studio.md). Ahí están los keyframes listos para cargar en Earth Studio.

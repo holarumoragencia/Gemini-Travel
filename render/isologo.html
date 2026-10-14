@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Gemini Travel · Motion de isologo</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a4058; }
+  svg { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<!--
+  Motion del isologo: un punto entra, se transforma en el avión, el avión sale,
+  vuelve desde la izquierda dibujando la línea, aparece TRAVEL a su paso y caen las letras de GEMINI.
+  Todo es una función del tiempo (window.draw(t)), así render.js puede capturar cuadro por cuadro.
+  Abriéndolo en el navegador se reproduce en loop.
+-->
+<svg id="stage" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Fondo celeste Gemini Travel con viñeta, como el rojo de la referencia -->
+    <radialGradient id="vignette" cx="50%" cy="46%" r="72%">
+      <stop offset="0" stop-color="#6d91b4" />
+      <stop offset="0.38" stop-color="#5a7d9f" />
+      <stop offset="0.78" stop-color="#3b5874" />
+      <stop offset="1" stop-color="#22364b" />
+    </radialGradient>
+  </defs>
+  <rect id="bg" fill="url(#vignette)" />
+  <g id="cam"><g id="logo" fill="#fff"></g></g>
+  <circle id="dot" r="1" fill="#fff" />
+</svg>
+<script>
+const COLOR_LINE = "#fff";
+const DURATION = 5.5;
+window.DURATION = DURATION;
+
+// --- utilidades de easing ---
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const prog = (t, t0, t1) => clamp((t - t0) / (t1 - t0));
+const easeInOutCubic = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+const easeInCubic = (k) => k * k * k;
+const easeOutCubic = (k) => 1 - Math.pow(1 - k, 3);
+const easeOutQuart = (k) => 1 - Math.pow(1 - k, 4);
+const easeOutBack = (k, s = 1.70158) => 1 + (s + 1) * Math.pow(k - 1, 3) + s * Math.pow(k - 1, 2);
+
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("stage");
+const cam = document.getElementById("cam");
+const logo = document.getElementById("logo");
+const dot = document.getElementById("dot");
+const W = window.innerWidth, H = window.innerHeight;
+svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+const bg = document.getElementById("bg");
+bg.setAttribute("width", W); bg.setAttribute("height", H);
+
+// Geometría del isologo (unidades del viewBox original 2834.67 x 1106.68)
+const LOGO_W = 2834.67, LOGO_H = 1106.68;
+const LOGO_C = { x: LOGO_W / 2, y: LOGO_H / 2 };
+const PLANE_C = { x: 2668, y: 955.5 };   // centro del avión (a la altura de la línea)
+const PLANE_TAIL = 2528;                // cola del avión
+const LINE_Y = 940.73, LINE_H = 29.63;
+const LINE_L = [9.78, 822.99], LINE_R = [2008.64, 2457.29];
+
+// Escala final: el logo ocupa ~80% del ancho (o del alto, lo que limite)
+const ZF = Math.min((W * 0.8) / LOGO_W, (H * 0.5) / LOGO_H);
+const Z0 = ZF * 4.5; // primer plano del avión
+
+let plane, gemini = [], travel = [], lineL, lineR;
+
+window.ready = fetch("assets/isologo-gemini-travel-blanco.svg").then((r) => r.text()).then((txt) => {
+  const doc = new DOMParser().parseFromString(txt, "image/svg+xml");
+  const root = doc.querySelector("#Capa_1-2");
+  const [planeEl, gGemini, gTravel] = root.children;
+  const wrap = (el) => {
+    const g = document.createElementNS(NS, "g");
+    const inner = document.createElementNS(NS, "g");
+    const node = document.importNode(el, true);
+    node.removeAttribute("class");
+    inner.appendChild(node);
+    g.appendChild(inner);
+    logo.appendChild(g);
+    const b = node.getBBox();
+    return { g, inner, cx: b.x + b.width / 2, cy: b.y + b.height / 2, bottom: b.y + b.height, b };
+  };
+  const mkLine = (x0) => {
+    const r = document.createElementNS(NS, "rect");
+    r.setAttribute("x", x0); r.setAttribute("y", LINE_Y); r.setAttribute("height", LINE_H);
+    r.setAttribute("fill", COLOR_LINE);
+    logo.appendChild(r);
+    return r;
+  };
+  lineL = mkLine(LINE_L[0]);
+  lineR = mkLine(LINE_R[0]);
+  gemini = [...gGemini.children].map(wrap);
+  travel = [...gTravel.children].map(wrap);
+  plane = wrap(planeEl);
+  // Momento en que la cola del avión pasa por cada letra de TRAVEL
+  travel.forEach((l) => {
+    l.tPass = DURATION;
+    for (let t = T.enter0; t <= T.enter1; t += 0.002) {
+      if (PLANE_TAIL + planeDx(t) >= l.cx) { l.tPass = t; break; }
+    }
+  });
+});
+
+// --- línea de tiempo (segundos) ---
+const T = {
+  dotIn: [0.0, 0.3],
+  dotMove: [0.2, 0.8],
+  morph: [0.85, 1.3],
+  antic: [1.5, 1.7],
+  exit: [1.7, 1.95],
+  zoom: [1.8, 2.4],
+  enter0: 2.05, enter1: 3.15,
+  gemini0: 2.85, geminiStagger: 0.07, geminiDur: 0.55,
+  push: [2.9, DURATION],
+};
+
+// Desplazamiento horizontal del avión respecto de su lugar final (unidades del logo)
+function planeDx(t) {
+  if (t < T.antic[0]) return 0;
+  if (t < T.antic[1]) return -70 * easeOutCubic(prog(t, ...T.antic));
+  if (t < T.exit[1]) return lerp(-70, 1900, easeInCubic(prog(t, ...T.exit)));
+  if (t < T.enter0) return 1900; // fuera de cuadro a la derecha
+  const k = prog(t, T.enter0, T.enter1);
+  return lerp(-3500, 0, easeOutBack(k, 0.9));
+}
+// Velocidad (para estirar el avión cuando va rápido)
+const planeV = (t) => (planeDx(t + 0.004) - planeDx(t - 0.004)) / 0.008;
+
+function camera(t) {
+  const k = easeInOutCubic(prog(t, ...T.zoom));
+  const push = 1 + 0.035 * easeOutCubic(prog(t, ...T.push));
+  return {
+    x: lerp(PLANE_C.x, LOGO_C.x, k),
+    y: lerp(PLANE_C.y, LOGO_C.y, k),
+    z: lerp(Z0, ZF, k) * push,
+  };
+}
+
+window.draw = (t) => {
+  const c = camera(t);
+  cam.setAttribute("transform", `translate(${W / 2} ${H / 2}) scale(${c.z}) translate(${-c.x} ${-c.y})`);
+
+  // 1) Punto: aparece a la izquierda, viaja al centro con squash & stretch y se convierte en el avión
+  const r0 = Math.max(10, W * 0.014);
+  const pin = easeOutBack(prog(t, ...T.dotIn), 2.2);
+  const mk = prog(t, ...T.dotMove);
+  const dx = lerp(-W * 0.3, 0, easeInOutCubic(mk));
+  const vel = Math.abs(mk > 0 && mk < 1 ? (easeInOutCubic(mk + 0.01) - easeInOutCubic(mk - 0.01)) / 0.02 : 0);
+  const morphK = prog(t, ...T.morph);
+  const shrink = 1 - easeInCubic(prog(t, T.morph[0], T.morph[0] + 0.18));
+  const stretch = 1 + vel * 0.35;
+  dot.setAttribute("transform",
+    `translate(${W / 2 + dx} ${H / 2}) scale(${r0 * pin * stretch * shrink} ${r0 * pin / Math.sqrt(stretch) * shrink})`);
+  dot.style.display = shrink <= 0 ? "none" : "";
+
+  if (!plane) return;
+
+  // 2) Avión: nace del punto (escala + giro), sale disparado a la derecha y vuelve desde la izquierda
+  const grow = morphK <= 0 ? 0 : easeOutBack(morphK, 2.0);
+  const rot = lerp(-35, 0, easeOutCubic(morphK));
+  const bob = t > T.morph[1] && t < T.antic[0] ? Math.sin((t - T.morph[1]) * 9) * 8 * (1 - prog(t, T.morph[1], T.antic[0])) : 0;
+  const pdx = planeDx(t);
+  const sx = 1 + Math.min(0.5, Math.abs(planeV(t)) / 12000);
+  plane.g.setAttribute("transform", `translate(${pdx} ${bob})`);
+  plane.inner.setAttribute("transform",
+    `translate(${PLANE_C.x} ${PLANE_C.y}) rotate(${rot}) scale(${grow * sx} ${grow / Math.sqrt(sx)}) translate(${-PLANE_C.x} ${-PLANE_C.y})`);
+
+  // 3) La línea se dibuja detrás de la cola en el vuelo de regreso
+  const tail = t >= T.enter0 ? PLANE_TAIL + pdx - 40 : -Infinity;
+  lineL.setAttribute("width", clamp(tail - LINE_L[0], 0, LINE_L[1] - LINE_L[0]));
+  lineR.setAttribute("width", clamp(tail - LINE_R[0], 0, LINE_R[1] - LINE_R[0]));
+
+  // 4) TRAVEL: cada letra salta cuando el avión pasa
+  travel.forEach((l) => {
+    const k = prog(t, l.tPass, l.tPass + 0.42);
+    const s = k <= 0 ? 0 : easeOutBack(k, 2.4);
+    const y = (1 - easeOutCubic(k)) * 90;
+    l.g.setAttribute("transform", `translate(0 ${y})`);
+    l.inner.setAttribute("transform", `translate(${l.cx} ${l.bottom}) scale(${s}) translate(${-l.cx} ${-l.bottom})`);
+  });
+
+  // 5) GEMINI: las letras caen desde arriba, se aplastan al tocar y rebotan
+  gemini.forEach((l, i) => {
+    const t0 = T.gemini0 + i * T.geminiStagger;
+    const k = prog(t, t0, t0 + T.geminiDur);
+    const fall = prog(k, 0, 0.45);
+    const y = k <= 0 ? -99999 : -1000 * (1 - easeInCubic(fall)) * (fall < 1 ? 1 : 0);
+    // squash al impacto y rebote elástico
+    const land = prog(k, 0.45, 1);
+    const sq = land > 0 ? Math.sin(land * Math.PI * 2.2) * Math.exp(-land * 4) * 0.28 : -0.18 * fall;
+    const sy = 1 - sq, sxx = 1 + sq * 0.6;
+    l.g.setAttribute("transform", `translate(0 ${y})`);
+    l.inner.setAttribute("transform", `translate(${l.cx} ${l.bottom}) scale(${sxx} ${sy}) translate(${-l.cx} ${-l.bottom})`);
+  });
+};
+
+// Vista previa en el navegador (render.js maneja el tiempo cuando captura)
+if (!navigator.webdriver) {
+  window.ready.then(() => {
+    const t0 = performance.now();
+    const loop = (now) => { window.draw(((now - t0) / 1000) % (DURATION + 0.6)); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  });
+}
+</script>
+</body>
+</html>
