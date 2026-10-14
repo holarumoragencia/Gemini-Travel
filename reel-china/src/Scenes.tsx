@@ -103,14 +103,15 @@ export const Price: React.FC = () => {
 export const Outro: React.FC = () => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const k = 800 / 2834.67; // escala del isologo (800 px de ancho)
-  const left = 140, top = 760;
+  const logoW = 620;
+  const k = logoW / 2834.67; // escala del isologo
+  const left = (1080 - logoW) / 2, top = 800;
   const lineY = top + 955 * k;
   const pop = spring({ frame: f - 2, fps, config: { damping: 11, stiffness: 160 } });
   const fly = interpolate(f, [14, 28], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
   const planeEndX = left + 2680 * k;
   const planeX = interpolate(fly, [0, 1], [540, planeEndX]);
-  const planeScale = pop * interpolate(fly, [0, 1], [1, 0.3]);
+  const planeScale = pop * interpolate(fly, [0, 1], [1, (310 * k) / 300]);
   const planeOn = f < 29;
   const lines = interpolate(f, [26, 36], [0, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
   const travel = interpolate(f, [28, 36], [0, 1], clamp);
@@ -129,7 +130,7 @@ export const Outro: React.FC = () => {
           <path d={PLANE} fill="#fff" />
         </svg>
       )}
-      <svg viewBox="0 0 2834.67 1106.68" width="800" style={{ position: "absolute", left, top, overflow: "visible" }}>
+      <svg viewBox="0 0 2834.67 1106.68" width={logoW} style={{ position: "absolute", left, top, overflow: "visible" }}>
         {LETTERS.map((el, i) => {
           const s = spring({ frame: f - 26 - i * 2.5, fps, config: { damping: 12, stiffness: 170 } });
           const props = { fill: "#fff", style: { transform: `translateY(${(1 - s) * -500}px)`, opacity: Math.min(1, s * 3) } };
@@ -148,13 +149,11 @@ export const Outro: React.FC = () => {
         ))}
         <path d={PLANE} fill="#fff" opacity={f >= 28 ? 1 : 0} />
       </svg>
-      <div style={{ position: "absolute", top: 1170, left: 0, right: 0, textAlign: "center", fontFamily, fontWeight: 800,
-        fontSize: 44, letterSpacing: 4, color: C.blanco, opacity: cta, transform: `translateY(${(1 - cta) * 30}px)` }}>
-        RESERVÁ HOY Y ASEGURÁ TU LUGAR
-      </div>
-      <div style={{ position: "absolute", top: 1240, left: 0, right: 0, textAlign: "center", fontFamily, fontWeight: 600,
-        fontSize: 32, letterSpacing: 6, color: C.dorado, opacity: cta }}>
-        SALIDA GRUPAL ACOMPAÑADA
+      {/* La frase nunca supera el ancho del logo */}
+      <div style={{ position: "absolute", top: top + 1106.68 * k + 50, left, width: logoW, textAlign: "center",
+        fontFamily, opacity: cta, transform: `translateY(${(1 - cta) * 30}px)`, whiteSpace: "nowrap" }}>
+        <div style={{ fontWeight: 800, fontSize: 26, letterSpacing: 1.5, color: C.blanco }}>RESERVÁ HOY Y ASEGURÁ TU LUGAR</div>
+        <div style={{ fontWeight: 600, fontSize: 22, letterSpacing: 4, color: C.dorado, marginTop: 14 }}>SALIDA GRUPAL ACOMPAÑADA</div>
       </div>
     </AbsoluteFill>
   );
