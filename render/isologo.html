@@ -62,9 +62,9 @@ const PLANE_TAIL = 2528;                // cola del avión
 const LINE_Y = 940.73, LINE_H = 29.63;
 const LINE_L = [9.78, 822.99], LINE_R = [2008.64, 2457.29];
 
-// Escala final: el logo ocupa ~80% del ancho (o del alto, lo que limite)
-const ZF = Math.min((W * 0.8) / LOGO_W, (H * 0.5) / LOGO_H);
-const Z0 = ZF * 4.5; // primer plano del avión
+// Escala final: el logo ocupa ~60% del ancho (o del alto, lo que limite)
+const ZF = Math.min((W * 0.6) / LOGO_W, (H * 0.38) / LOGO_H);
+const Z0 = ZF * 6; // primer plano del avión
 
 let plane, gemini = [], travel = [], lineL, lineR;
 

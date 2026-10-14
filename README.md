@@ -58,7 +58,7 @@ Se necesitan Node.js, Chromium (lo instala Playwright con `npx playwright instal
 
 ## Motion del isologo
 
-[`render/isologo.html`](render/isologo.html) anima el isologo de Gemini Travel (`render/assets/isologo-gemini-travel-blanco.svg`) sobre fondo celeste `#5a7d9f` con viñeta. Arranca con un punto que viaja al centro y se convierte en el avión. El avión sale disparado, vuelve desde la izquierda dibujando la línea, TRAVEL aparece a su paso y al final caen las letras de GEMINI. Dura 5,5 s.
+[`render/isologo.html`](render/isologo.html) anima el isologo de Gemini Travel (`render/assets/isologo-gemini-travel-blanco.svg`) sobre fondo celeste `#5a7d9f` con viñeta. Arranca con un punto que viaja al centro y se convierte en el avión. El avión sale disparado, vuelve desde la izquierda dibujando la línea, TRAVEL aparece a su paso y al final caen las letras de GEMINI. Dura 5,5 s. El logo ocupa alrededor del 60% del ancho (constante `ZF`).
 
 - `videos/isologo-1080x1920.mp4`: vertical (reels, stories, TikTok).
 - `videos/isologo-1920x1080.mp4`: horizontal.
