@@ -59,3 +59,14 @@ Se necesitan Node.js, Chromium (lo instala Playwright con `npx playwright instal
 ## Alternativa sin código: Google Earth Studio
 
 Si preferís renderizar cuadro por cuadro en máxima calidad, mirá [`docs/google-earth-studio.md`](docs/google-earth-studio.md). Ahí están los keyframes listos para cargar en Earth Studio.
+
+## Video "DEPARTURES" (vuelos directos a Brasil)
+
+`videos/departures-brasil-1080x1920.mp4`: video vertical de 16 s con una pantalla azul de aeropuerto. Los vuelos salen desde Córdoba, Rosario, Buenos Aires, Mendoza, Salta, Tucumán y Bariloche, y Córdoba y Rosario aparecen resaltadas. Las letras giran al aparecer y al irse, los nombres largos se desplazan dentro de su columna, el título alterna DEPARTURES / PARTIDAS / SALIDAS y el destino alterna entre BRASIL y la ciudad.
+
+Para volver a generarlo después de cambiar vuelos, colores o tiempos en `render/departures.py` (necesita Python con Pillow y `ffmpeg`):
+
+```bash
+python3 render/departures.py
+python3 render/departures.py --preview 5 --out cuadro.png   # un solo cuadro, para probar
+```
